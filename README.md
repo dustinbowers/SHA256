@@ -1,7 +1,12 @@
 # SHA256
-A Go implementation of the SHA256 hashing algorithm
+A just-for-fun implementation of the SHA256 hashing algorithm
 
-**NOTE:** *Do not use this for anything important. (This implementation may be flawed)*
+**NOTE:** *Do not use this for anything important.*
+
+## Build
+
+`go build`
 
 ## Usage
+
 `./SHA256 <filepath>`
