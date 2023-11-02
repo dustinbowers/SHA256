@@ -1,13 +1,10 @@
 package hash
 
 import (
-	"bufio"
 	"encoding/binary"
 	"io"
-	"log"
 	"math"
 	"math/bits"
-	"os"
 )
 
 type SHA256 struct {
@@ -46,40 +43,16 @@ func (s *SHA256) Reset() {
 	s.hash = s.getH()
 }
 
-func (s *SHA256) openFile(filePath string) (*os.File, uint64, error) {
-	f, err := os.Open(filePath)
-	if err != nil {
-		log.Fatalf("Error reading file [%v]: %v\n", filePath, err.Error())
-	}
-
-	fi, err := f.Stat()
-	if err != nil {
-		log.Fatalf("Error getting file size\n")
-	}
-	return f, uint64(fi.Size()), nil
-}
-
-func (s *SHA256) Sum(filePath string) ([]byte, error){
+func (s *SHA256) Sum(r io.Reader) ([]byte, error){
 	s.Reset()
 
-	f, numBytes, err := s.openFile(filePath)
-	if err != nil {
-		log.Fatalf("Error opening file. %v\n", err)
-	}
-	defer f.Close()
-
-	numChunks := (numBytes * 8) / 512 + 1
-	if numBytes % 64 > 54 {
-		numChunks = numChunks + 1
-	}
-
-	r := bufio.NewReader(f)
 	buf := make([]byte, 64)
 	bytesRead := uint64(0)
 	oneAdded := false
 
-	// Process message in success 512-bit chunks
-	for n := uint64(0); n < numChunks; n++ {
+	// Process message in successive 512-bit chunks
+	done := false
+	for !done {
 		for i := range buf {
 			buf[i] = 0
 		}
@@ -95,7 +68,7 @@ func (s *SHA256) Sum(filePath string) ([]byte, error){
 			w[i] = binary.BigEndian.Uint32(buf[i*4:i*4+4])
 		}
 
-		if oneAdded == false && bytesRead == numBytes {
+		if n < 64 && oneAdded == false {
 			oneAdded = true
 			// Pad the last 512-bit chunk with SHA256 magic
 			// Last chunk takes the bit form: <read bits> 1 <zeros> <numBytes as 64-bit int)
@@ -104,13 +77,16 @@ func (s *SHA256) Sum(filePath string) ([]byte, error){
 			wordInd := uint64(math.Floor(float64(n) / 4))
 			byteInd := n % 4
 			w[wordInd] |= uint32(1) << (32 - (uint32(byteInd) * 8) - 1)
+
 		}
 
+		// Wait until there's enough room to inject 64 bits at the tail of the chunk
 		if n < 54 {
 			// Inject the total bit-count of the message as a uint64 in the last 2 words of the chunk
-			numBits := numBytes * 8
+			numBits := bytesRead * 8
 			w[14] = uint32(numBits >> 32)
 			w[15] = uint32(numBits)
+			done = true
 		}
 
 		// Extend the first 16 words into the remaining 48 words w[16..63] of the message schedule array:
