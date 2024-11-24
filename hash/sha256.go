@@ -70,8 +70,8 @@ func (s *SHA256) Sum(r io.Reader) ([]byte, error){
 
 		if n < 64 && oneAdded == false {
 			oneAdded = true
-			// Pad the last 512-bit chunk with SHA256 magic
-			// Last chunk takes the bit form: <read bits> 1 <zeros> <numBytes as 64-bit int)
+			// Pad the last 512-bit chunk with SHA256 magic:
+			// Last chunk takes the bit form: <read bits> 1 <zeros> <numBytes as 64-bit int>
 
 			// Append a '1' bit at the correct byte of the last-read word
 			wordInd := uint64(math.Floor(float64(n) / 4))
